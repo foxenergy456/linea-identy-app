@@ -1,0 +1,189 @@
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:web3dart/web3dart.dart'; // For Linea blockchain interaction
+import 'package:camera/camera.dart'; // For biometric selfie
+import 'package:secure_storage/secure_storage.dart'; // For storing credentials
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Initialize cameras for biometric verification
+  final cameras = await availableCameras();
+  runApp(LineaIdentityApp(cameras: cameras));
+}
+
+class LineaIdentityApp extends StatelessWidget {
+  final List<CameraDescription> cameras;
+  const LineaIdentityApp({Key? key, required this.cameras}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Linea Identity',
+      theme: ThemeData(primarySwatch: Colors.blue),
+      home: HomeScreen(cameras: cameras),
+    );
+  }
+}
+
+class HomeScreen extends StatefulWidget {
+  final List<CameraDescription> cameras;
+  const HomeScreen({Key? key, required this.cameras}) : super(key: key);
+
+  @override
+  _HomeScreenState createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  String? _did; // Decentralized Identifier
+  String? _credential; // Verifiable Credential (e.g., Proof of Humanity)
+  bool _isVerified = false;
+
+  // Hypothetical Linea blockchain client
+  final _web3Client = Web3Client('https://linea-mainnet.infura.io/v3/YOUR_API_KEY', http.Client());
+  final _contractAddress = '0x...'; // Linea Identity smart contract
+  final _secureStorage = SecureStorage();
+
+  // Initialize DID and check verification status
+  Future<void> _initializeDID() async {
+    // Simulate generating or retrieving DID
+    final privateKey = EthPrivateKey.createRandom(Random.secure());
+    _did = 'did:linea:${privateKey.address.hex}';
+    await _secureStorage.write('did', _did!);
+    setState(() {
+      _did = _did;
+    });
+    // Check if user has a verified credential
+    _isVerified = await _checkVerificationStatus();
+  }
+
+  // Simulate Proof of Humanity (PoH) verification
+  Future<bool> _verifyIdentity(CameraDescription camera) async {
+    try {
+      // Capture selfie using camera
+      // In production, use a liveness detection SDK (e.g., FaceTec, Yoti)
+      final selfie = await _captureSelfie(camera);
+      // Simulate document scan (e.g., passport)
+      final document = await _scanDocument();
+      // Send to verification service (e.g., Linea’s PoH backend)
+      final response = await http.post(
+        Uri.parse('https://linea-poh-api.example.com/verify'),
+        body: {'selfie': selfie, 'document': document, 'did': _did},
+      );
+      if (response.statusCode == 200) {
+        _credential = 'vc:linea:proof_of_humanity:${_did}';
+        await _secureStorage.write('credential', _credential!);
+        // Register credential on Linea blockchain
+        await _registerCredentialOnChain(_credential!);
+        setState(() {
+          _isVerified = true;
+        });
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('Verification failed: $e');
+      return false;
+    }
+  }
+
+  // Simulate registering credential on Linea blockchain
+  Future<void> _registerCredentialOnChain(String credential) async {
+    final contract = DeployedContract(
+      ContractAbi.fromJson('...', 'LineaIdentity'),
+      EthereumAddress.fromHex(_contractAddress),
+    );
+    final function = contract.function('registerCredential');
+    await _web3Client.sendTransaction(
+      EthPrivateKey.fromHex(await _secureStorage.read('privateKey')),
+      Transaction.callContract(
+        contract: contract,
+        function: function,
+        parameters: [credential],
+      ),
+    );
+  }
+
+  // Check verification status on blockchain
+  Future<bool> _checkVerificationStatus() async {
+    final contract = DeployedContract(
+      ContractAbi.fromJson('...', 'LineaIdentity'),
+      EthereumAddress.fromHex(_contractAddress),
+    );
+    final function = contract.function('isVerified');
+    final result = await _web3Client.call(
+      contract: contract,
+      function: function,
+      params: [_did],
+    );
+    return result[0] as bool;
+  }
+
+  // Placeholder for capturing selfie (requires camera plugin)
+  Future<String> _captureSelfie(CameraDescription camera) async {
+    // Implement camera capture logic
+    return 'selfie_data';
+  }
+
+  // Placeholder for document scan
+  Future<String> _scanDocument() async {
+    // Implement document scan logic (e.g., OCR)
+    return 'document_data';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeDID();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Linea Identity')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Text('Your DID: ${_did ?? "Generating..."}'),
+            SizedBox(height: 20),
+            Text(_isVerified ? 'Identity Verified' : 'Identity Not Verified'),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _isVerified
+                  ? null
+                  : () => _verifyIdentity(widget.cameras.first),
+              child: Text('Verify Identity'),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _isVerified
+                  ? () async {
+                      // Share credential (e.g., for airdrop or DeFi)
+                      await _shareCredential();
+                    }
+                  : null,
+              child: Text('Share Credential'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Share credential with a service (e.g., Linea Surge airdrop)
+  Future<void> _shareCredential() async {
+    final response = await http.post(
+      Uri.parse('https://linea-service.example.com/verify'),
+      body: {'credential': _credential, 'did': _did},
+    );
+    if (response.statusCode == 200) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Credential shared successfully')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to share credential')),
+      );
+    }
+  }
+}
