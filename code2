@@ -1,0 +1,16 @@
+       : null,
+              child: Text('Share Credential'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Share credential with a service (e.g., Linea Surge airdrop)
+  Future<void> _shareCredential() async {
+    final response = await http.post(
+      Uri.parse('https://linea-service.example.com/verify'),
+      body: {'credential': _credential, 'did': _did},
+    );
+}
