@@ -143,20 +143,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          children: [
-            Text('Your DID: ${_did ?? "Generating..."}'),
-            SizedBox(height: 20),
-            Text(_isVerified ? 'Identity Verified' : 'Identity Not Verified'),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _isVerified
-                  ? null
-                  : () => _verifyIdentity(widget.cameras.first),
-              child: Text('Verify Identity'),
-            ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _isVerified
+        
                   ? () async {
                       // Share credential (e.g., for airdrop or DeFi)
                       await _shareCredential();
